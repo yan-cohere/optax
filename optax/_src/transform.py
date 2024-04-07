@@ -24,6 +24,7 @@ import jax.numpy as jnp
 from optax import tree_utils
 from optax._src import base
 from optax._src import numerics
+from optax._src import update as optax_update
 from optax._src import utils
 from optax._src import wrappers
 
@@ -1462,3 +1463,87 @@ def scale_by_polyak(
     return updates, state
 
   return base.GradientTransformationExtraArgs(_init_empty_state, update_fn)
+
+
+class ScheduleFreeState(NamedTuple):
+  """State for schedule_free."""
+  weight_sum: chex.Array
+  step_count: chex.Array
+  max_lr: chex.Array
+  base_optimizer_state: base.OptState
+  z: base.Params
+  x: base.Params
+
+
+def schedule_free(
+    learning_rate: base.ScalarOrSchedule,
+    base_optimizer: base.GradientTransformation,
+    beta1: float = 0.9,
+    r: float = 0.0,
+    weight_lr_power: float = 2.0,
+    state_dtype=jnp.float32,
+) -> base.GradientTransformation:
+  """base_optimizer: the optimizer that we are wrapping with schedule_free."""
+
+  def init_fn(params: base.Params) -> ScheduleFreeState:
+    z = jax.tree_util.tree_map(lambda t: t.astype(state_dtype), params)
+    x = jax.tree_util.tree_map(lambda t: t.astype(state_dtype), params)
+    return ScheduleFreeState(
+        weight_sum=jnp.zeros([], dtype=jnp.float32),
+        step_count=jnp.ones([], dtype=jnp.int32),
+        max_lr=jnp.zeros([], dtype=jnp.float32),
+        base_optimizer_state=base_optimizer.init(params),
+        z=z,
+        x=x,
+    )
+
+  def update_fn(
+      grads: base.Updates,
+      state: ScheduleFreeState,
+      params: Optional[base.Params] = None,
+  ):
+    lr = learning_rate
+    if callable(learning_rate):
+      lr = learning_rate(state.step_count)
+    max_lr = jnp.maximum(state.max_lr, lr)
+
+    next_step_count = state.step_count + 1
+
+    weight = (next_step_count ** r) * (max_lr ** weight_lr_power)
+    next_total_weight = state.weight_sum + weight
+    ck = weight / next_total_weight
+
+    base_updates, next_base_optimizer_state = base_optimizer.update(
+        grads,
+        state.base_optimizer_state,
+        params,
+    )
+
+    z = optax_update.apply_updates(params, base_updates)
+
+    x = jax.tree_util.tree_map(
+        lambda xi, zi: (1.0 - ck) * xi + ck * zi,
+        state.x,
+        z,
+    )
+    new_params = jax.tree_util.tree_map(
+        lambda xi, zi: beta1 * xi + (1.0 - beta1) * zi,
+        x,
+        z,
+    )
+    updates = jax.tree_util.tree_map(
+        lambda npi, pi: npi - pi, new_params, params
+    )
+
+    next_state = ScheduleFreeState(
+        weight_sum=next_total_weight,
+        step_count=next_step_count,
+        max_lr=max_lr,
+        x=x,
+        base_optimizer_state=next_base_optimizer_state,
+        z=z,
+    )
+
+    return updates, next_state
+
+  return base.GradientTransformation(init_fn, update_fn)

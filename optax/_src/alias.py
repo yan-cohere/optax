@@ -1844,3 +1844,93 @@ def polyak_sgd(
           max_learning_rate=max_learning_rate, f_min=f_min, eps=eps
       ),
   )
+
+
+def schedule_free_adamw(
+    learning_rate: base.ScalarOrSchedule,
+    b1: float = 0.9,
+    b2: float = 0.999,
+    eps: float = 1e-8,
+    eps_root: float = 0.0,
+    mu_dtype: Optional[Any] = None,
+    weight_decay: float = 1e-4,
+    mask: Optional[Union[Any, Callable[[base.Params], Any]]] = None,
+    *,
+    nesterov: bool = False,
+) -> base.GradientTransformation:
+  """Schedule free Adam with weight decay regularization.
+
+  Examples:
+    >>> import optax
+    >>> import jax
+    >>> import jax.numpy as jnp
+    >>> def f(x): return jnp.sum(x ** 2)  # simple quadratic function
+    >>> solver = optax.schedule_free_adamw(learning_rate=0.003)
+    >>> params = jnp.array([1., 2., 3.])
+    >>> print('Objective function: ', f(params))
+    Objective function:  14.0
+    >>> opt_state = solver.init(params)
+    >>> for _ in range(5):
+    ...  grad = jax.grad(f)(params)
+    ...  updates, opt_state = solver.update(grad, opt_state, params)
+    ...  params = optax.apply_updates(params, updates)
+    ...  print('Objective function: {:.2E}'.format(f(params)))
+    Objective function: 1.40E+01
+    Objective function: 1.39E+01
+    Objective function: 1.39E+01
+    Objective function: 1.39E+01
+    Objective function: 1.38E+01
+
+  References:
+    Loshchilov et al, `Decoupled Weight Decay
+    Regularization <https://arxiv.org/abs/1711.05101>`_, 2019
+
+    Dozat, `Incorporating Nesterov Momentum into Adam
+    <https://openreview.net/pdf?id=OM0jvwB8jIp57ZJjtNEZ>`_, 2016
+
+  Args:
+    learning_rate: A global scaling factor, either fixed or evolving along
+      iterations with a scheduler, see :func:`optax.scale_by_learning_rate`.
+      We recommend using optax.warmup_constant_schedule schedule.
+    b1: Exponential decay rate for schedule free interpolation.
+    b2: Exponential decay rate to track the second moment of past gradients.
+    eps: A small constant applied to denominator outside of the square root
+      (as in the Adam paper) to avoid dividing by zero when rescaling.
+    eps_root: A small constant applied to denominator inside the square root (as
+      in RMSProp), to avoid dividing by zero when rescaling. This is needed for
+      instance when computing (meta-)gradients through Adam.
+    mu_dtype: Optional `dtype` to be used for the first order accumulator; if
+      `None` then the `dtype` is inferred from `params` and `updates`.
+    weight_decay: Strength of the weight decay regularization. Note that this
+      weight decay is multiplied with the learning rate. This is consistent
+      with other frameworks such as PyTorch, but different from
+      (Loshchilov et al, 2019) where the weight decay is only multiplied with
+      the "schedule multiplier", but not the base learning rate.
+    mask: A tree with same structure as (or a prefix of) the params PyTree,
+      or a Callable that returns such a pytree given the params/updates.
+      The leaves should be booleans, `True` for leaves/subtrees you want to
+      apply the weight decay to, and `False` for those you want to skip. Note
+      that the Adam gradient transformations are applied to all parameters.
+    nesterov: Whether to use Nesterov momentum. The solver with
+      nesterov=True is equivalent to the :func:`optax.nadamw` optimizer. This
+      modification is described in [Dozat 2016].
+
+  Returns:
+    The corresponding `GradientTransformation`.
+
+  .. seealso:: :func:`optax.adamw`
+  """
+  opt = combine.chain(
+      transform.scale_by_adam(
+          b1=0.,  # Intentionally switch adamw momentum off.
+          b2=b2,
+          eps=eps,
+          eps_root=eps_root,
+          mu_dtype=mu_dtype,
+          nesterov=nesterov,
+      ),
+      transform.add_decayed_weights(weight_decay, mask),
+      transform.scale_by_learning_rate(learning_rate),
+  )
+  return transform.schedule_free(
+      learning_rate, opt, beta1=b1, state_dtype=mu_dtype)

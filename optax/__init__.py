@@ -44,6 +44,7 @@ from optax._src.alias import polyak_sgd
 from optax._src.alias import radam
 from optax._src.alias import rmsprop
 from optax._src.alias import rprop
+from optax._src.alias import schedule_free_adamw
 from optax._src.alias import sgd
 from optax._src.alias import sm3
 from optax._src.alias import yogi
@@ -140,6 +141,8 @@ from optax._src.transform import ScaleByScheduleState
 from optax._src.transform import ScaleBySM3State
 from optax._src.transform import ScaleByTrustRatioState
 from optax._src.transform import ScaleState
+from optax._src.transform import schedule_free
+from optax._src.transform import ScheduleFreeState
 from optax._src.transform import trace
 from optax._src.transform import TraceState
 from optax._src.transform import update_infinity_moment
@@ -341,6 +344,7 @@ __all__ = (
     "scale_by_yogi",
     "scale_gradient",
     "scale",
+    "schedule_free",
     "ScaleByAdaDeltaState",
     "ScaleByAdamState",
     "ScaleByAmsgradState",
@@ -357,6 +361,7 @@ __all__ = (
     "ScaleByTrustRatioState",
     "ScaleState",
     "Schedule",
+    "ScheduleFreeState",
     "set_to_zero",
     "sgd",
     "sgdr_schedule",
