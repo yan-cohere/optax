@@ -17,6 +17,7 @@
 from absl.testing import absltest
 import chex
 import jax
+from jax import flatten_util
 from jax import tree_util as jtu
 import jax.numpy as jnp
 import numpy as np
@@ -131,6 +132,20 @@ class TreeUtilsTest(absltest.TestCase):
                         jnp.vdot(self.tree_a[1], self.tree_a[1]).real)
     got = tu.tree_l2_norm(self.tree_a)
     np.testing.assert_allclose(expected, got)
+
+  def test_tree_l1_norm(self):
+    for tree in (
+        self.tree_a,
+        self.array_a,
+        self.tree_a_dict,
+        self.tree_b,
+        self.array_b,
+        self.tree_b_dict,
+    ):
+      values, _ = flatten_util.ravel_pytree(tree)
+      expected = jnp.sum(jnp.abs(values))
+      got = tu.tree_l1_norm(tree)
+      np.testing.assert_allclose(expected, got, atol=1e-4)
 
   def test_tree_zeros_like(self):
     expected = jnp.zeros_like(self.array_a)
