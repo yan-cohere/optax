@@ -103,35 +103,35 @@ def perceptron_loss(
   return jnp.maximum(0, - predictor_outputs * targets)
 
 
-def sparsemax_loss(
-    logits: chex.Array,
-    labels: chex.Array,
-) -> chex.Array:
-  """Binary sparsemax loss.
+# def sparsemax_loss(
+#     logits: chex.Array,
+#     labels: chex.Array,
+# ) -> chex.Array:
+#   """Binary sparsemax loss.
 
-  This loss is zero if and only if `jax.nn.sparse_sigmoid(logits) == labels`.
+#   This loss is zero if and only if `jax.nn.sparse_sigmoid(logits) == labels`.
 
-  References:
-    Learning with Fenchel-Young Losses. Mathieu Blondel, André F. T. Martins,
-    Vlad Niculae. JMLR 2020. (Sec. 4.4)
+#   References:
+#     Learning with Fenchel-Young Losses. Mathieu Blondel, André F. T. Martins,
+#     Vlad Niculae. JMLR 2020. (Sec. 4.4)
 
-  Args:
-    logits: score produced by the model (float).
-    labels: ground-truth integer label (0 or 1).
+#   Args:
+#     logits: score produced by the model (float).
+#     labels: ground-truth integer label (0 or 1).
 
-  Returns:
-    loss value
+#   Returns:
+#     loss value
 
-  .. versionadded:: 0.2.3
-  """
-  return jax.nn.sparse_plus(jnp.where(labels, -logits, logits))
+#   .. versionadded:: 0.2.3
+#   """
+#   return jax.nn.sparse_plus(jnp.where(labels, -logits, logits))
 
 
-@functools.partial(
-    chex.warn_deprecated_function,
-    replacement='sparsemax_loss')
-def binary_sparsemax_loss(logits, labels):
-  return sparsemax_loss(logits, labels)
+# @functools.partial(
+#     chex.warn_deprecated_function,
+#     replacement='sparsemax_loss')
+# def binary_sparsemax_loss(logits, labels):
+#   return sparsemax_loss(logits, labels)
 
 
 @jax.custom_jvp

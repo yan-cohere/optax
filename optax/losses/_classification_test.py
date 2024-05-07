@@ -405,47 +405,47 @@ class HingeTest(parameterized.TestCase):
     np.testing.assert_allclose(result, expected, atol=1e-4)
 
 
-class SparsemaxTest(parameterized.TestCase):
+# class SparsemaxTest(parameterized.TestCase):
 
-  def test_binary(self):
-    label = 1
-    score = 10.0
+#   def test_binary(self):
+#     label = 1
+#     score = 10.0
 
-    def reference_impl(label, logit):
-      scores = -(2 * label - 1) * logit
-      if scores <= -1.0:
-        return 0.0
-      elif scores >= 1.0:
-        return scores
-      else:
-        return (scores + 1.0) ** 2 / 4
+#     def reference_impl(label, logit):
+#       scores = -(2 * label - 1) * logit
+#       if scores <= -1.0:
+#         return 0.0
+#       elif scores >= 1.0:
+#         return scores
+#       else:
+#         return (scores + 1.0) ** 2 / 4
 
-    expected = reference_impl(label, score)
-    result = _classification.sparsemax_loss(
-        jnp.asarray(score), jnp.asarray(label)
-    )
-    np.testing.assert_allclose(result, expected, atol=1e-4)
+#     expected = reference_impl(label, score)
+#     result = _classification.sparsemax_loss(
+#         jnp.asarray(score), jnp.asarray(label)
+#     )
+#     np.testing.assert_allclose(result, expected, atol=1e-4)
 
-  def test_batched_binary(self):
-    labels = jnp.array([1, 0])
-    scores = jnp.array([10.0, 20.0])
+#   def test_batched_binary(self):
+#     labels = jnp.array([1, 0])
+#     scores = jnp.array([10.0, 20.0])
 
-    def reference_impl(label, logit):
-      scores = -(2 * label - 1) * logit
-      if scores <= -1.0:
-        return 0.0
-      elif scores >= 1.0:
-        return scores
-      else:
-        return (scores + 1.0) ** 2 / 4
+#     def reference_impl(label, logit):
+#       scores = -(2 * label - 1) * logit
+#       if scores <= -1.0:
+#         return 0.0
+#       elif scores >= 1.0:
+#         return scores
+#       else:
+#         return (scores + 1.0) ** 2 / 4
 
-    expected = jnp.asarray([
-        reference_impl(labels[0], scores[0]),
-        reference_impl(labels[1], scores[1]),
-    ])
-    # in the optax loss the leading dimensions are automatically handled.
-    result = _classification.sparsemax_loss(scores, labels)
-    np.testing.assert_allclose(result, expected, atol=1e-4)
+#     expected = jnp.asarray([
+#         reference_impl(labels[0], scores[0]),
+#         reference_impl(labels[1], scores[1]),
+#     ])
+#     # in the optax loss the leading dimensions are automatically handled.
+#     result = _classification.sparsemax_loss(scores, labels)
+#     np.testing.assert_allclose(result, expected, atol=1e-4)
 
 
 class ConvexKLDivergenceTest(parameterized.TestCase):
